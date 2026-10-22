@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Quick Bill Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+    :root {
+        --bg-color: #0f1115;
+        --app-bg: #181b21;
+        --primary: #d4af37; 
+        --primary-hover: #b5952f;
+        --text-main: #f5f5f7;
+        --text-muted: #86868b;
+        --surface: #22262f;
+        --surface-hover: #2a2f3a;
+        --danger: #ff453a;
+        --success: #32d74b;
+        --info: #0a84ff;
+    }
+
+    * {
+        -webkit-tap-highlight-color: transparent;
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        display: flex;
+        justify-content: center;
+        touch-action: manipulation; 
+    }
+    
+    .app-container {
+        width: 100%;
+        max-width: 400px;
+        background-color: var(--app-bg);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+    
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 15px;
+        background-color: rgba(24, 27, 33, 0.85);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        z-index: 10;
+    }
+    .header h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.5px; }
+    
+    .btn-small {
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        color: white;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s ease;
+        margin-left: 5px;
+    }
+    .btn-small:active { transform: scale(0.95); opacity: 0.8; }
+    .btn-clear { background-color: rgba(255, 69, 58, 0.15); color: var(--danger); }
+    .btn-history { background-color: rgba(10, 132, 255, 0.15); color: var(--info); } 
+    .btn-scan { background-color: rgba(212, 175, 55, 0.15); color: var(--primary); }
+    .btn-thermal { background-color: var(--primary); color: #000; font-size: 14px; padding: 12px; width: 100%; margin-bottom: 10px; border-radius: 12px; box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);}
+    .btn-a4 { background-color: var(--success); color: white; font-size: 14px; padding: 12px; width: 100%; border-radius: 12px;}
+    .btn-ok { background-color: var(--primary); color: black; font-size: 14px; padding: 10px 25px; border:none; border-radius: 8px; font-weight: 600; cursor:pointer;}
+
+    .table-header {
+        display: flex;
+        background-color: var(--surface);
+        padding: 12px 5px;
+        font-weight: 600;
+        font-size: 11px;
+        color: var(--text-muted);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .table-header div { flex: 1; text-align: center; }
+    
+    .bill-list {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 10px;
+        font-size: 14px;
+        touch-action: pan-y; 
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .bill-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.03);
+        animation: fadeIn 0.3s ease-out;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 8px;
+        margin-bottom: 2px;
+    }
+    .bill-item:active { background-color: var(--surface); }
+    .bill-item div { flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;}
+    .bill-item.editing { background-color: var(--surface); border-left: 3px solid var(--primary); }
+
+    .total-bar {
+        background-color: rgba(34, 38, 47, 0.8);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 20px;
+        font-weight: 700;
+        border-top: 1px solid rgba(255,255,255,0.05);
+        color: var(--primary);
+    }
+    
+    .input-section {
+        padding: 15px 15px 5px 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .item-name-row {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .item-name-input {
+        flex: 1;
+        background-color: var(--surface);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 12px;
+        padding: 14px 15px;
+        font-size: 15px; 
+        color: var(--text-main);
+        outline: none;
+        transition: all 0.3s ease;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .item-name-input:focus { border-color: var(--primary); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 0 0 1px var(--primary); }
+    .item-name-input::placeholder { color: var(--text-muted); text-align: left; font-weight: 400;}
+
+    .price-qty-row {
+        display: flex;
+        gap: 12px;
+    }
+    .input-box {
+        flex: 1;
+        background-color: var(--surface);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 12px;
+        padding: 15px 15px;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-main);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+    }
+    .input-box.active { border-color: var(--primary); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 0 0 1px var(--primary); }
+    .placeholder { color: var(--text-muted); font-size: 14px; font-weight: 400; }
+
+    .numpad {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        padding: 15px 20px 25px 20px;
+        background-color: var(--app-bg);
+        touch-action: none; 
+    }
+    
+    .num-btn {
+        background-color: var(--surface);
+        color: var(--text-main);
+        border: none;
+        border-radius: 16px;
+        width: 100%;
+        height: 65px;
+        font-size: 24px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transition: all 0.1s ease;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .num-btn:active { background-color: var(--surface-hover); transform: scale(0.92); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    
+    .action-btn {
+        background-color: var(--primary);
+        color: black;
+        border: none;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        transition: all 0.1s ease;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        box-shadow: 0 4px 12px rgba(212, 175, 55, 0.25);
+    }
+    .action-btn:active { transform: scale(0.92); box-shadow: 0 1px 2px rgba(212, 175, 55, 0.15); }
+    .action-btn.save { border-radius: 16px; width: 100%; height: 65px; }
+    .action-btn.enter { grid-column: 4; grid-row: 2 / span 3; height: 100%; width: 100%; border-radius: 24px; }
+    .btn-delete { background-color: rgba(255, 69, 58, 0.1); color: var(--danger); font-size: 22px; box-shadow: none; }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 100;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.6);
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+        justify-content: center;
+        align-items: center;
+    }
+    .modal-content {
+        background-color: var(--app-bg);
+        width: 90%;
+        max-width: 350px;
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.05);
+        display: flex;
+        flex-direction: column;
+        max-height: 85vh;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .modal-header h3 { margin: 0; color: var(--primary); font-weight: 600; font-size: 18px;}
+    .close { color: var(--text-muted); font-size: 24px; font-weight: bold; cursor: pointer; line-height: 1; transition: color 0.2s;}
+    .close:hover { color: white; }
+    
+    .history-list { 
+        padding: 15px; 
+        overflow-y: auto; 
+        touch-action: pan-y; 
+    }
+    
+    .history-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        background-color: var(--surface);
+        border-radius: 12px;
+        margin-bottom: 10px;
+        border: 1px solid rgba(255,255,255,0.02);
+    }
+    .hist-info { flex: 1; cursor: pointer; }
+    .hist-info strong { font-size: 15px; color: var(--text-main); font-weight: 600;}
+    .hist-info small { color: var(--text-muted); display: block; margin-top: 6px; font-size: 12px;}
+    .hist-actions { display: flex; gap: 8px; }
+</style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header">
+        <h2>Quick Bill</h2>
+        <div>
+            <input type="file" id="scanFile" accept="image/*" style="display:none">
+            <button class="btn-small btn-scan" onclick="document.getElementById('scanFile').click()">📷 Scan</button>
+            <button class="btn-small btn-history" onclick="openHistory()">History</button>
+            <button class="btn-small btn-clear" onclick="requestClearBill()">Clear</button>
+        </div>
+    </div>
+
+    <div class="table-header">
+        <div>SR</div>
+        <div>DETAILS</div>
+        <div>PRICE</div>
+        <div>QTY</div>
+        <div>TOTAL</div>
+    </div>
+
+    <div class="bill-list" id="billList">
+        <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;" id="emptyText">
+            Items will appear here. <br>Tap on any item to edit it.
+        </div>
+    </div>
+
+    <div class="total-bar">
+        <span>Total:</span>
+        <span id="grandTotal">₹0</span>
+    </div>
+
+    <div class="input-section">
+        <div class="item-name-row">
+            <input type="text" class="item-name-input" id="itemNameInput" placeholder="Enter Item Name (Optional)">
+            <button id="deleteItemBtn" class="btn-small btn-clear" style="display: none; padding: 0 15px; font-size: 16px; margin: 0;" onclick="deleteCurrentItem()" title="Delete Item">🗑️</button>
+        </div>
+        <div class="price-qty-row">
+            <div class="input-box active" id="priceBox" onclick="setActive('price')">
+                <span class="placeholder" id="pricePlaceholder">Price</span>
+                <span id="priceValue"></span>
+            </div>
+            <div class="input-box" id="qtyBox" onclick="setActive('qty')">
+                <span class="placeholder" id="qtyPlaceholder">Qty</span>
+                <span id="qtyValue"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="numpad">
+        <button class="num-btn" onclick="addNumber('7')">7</button>
+        <button class="num-btn" onclick="addNumber('8')">8</button>
+        <button class="num-btn" onclick="addNumber('9')">9</button>
+        <button class="action-btn save" onclick="openSaveModal()">Save</button>
+
+        <button class="num-btn" onclick="addNumber('4')">4</button>
+        <button class="num-btn" onclick="addNumber('5')">5</button>
+        <button class="num-btn" onclick="addNumber('6')">6</button>
+        <button class="action-btn enter" onclick="handleEnter()">Enter<br>X</button>
+
+        <button class="num-btn" onclick="addNumber('1')">1</button>
+        <button class="num-btn" onclick="addNumber('2')">2</button>
+        <button class="num-btn" onclick="addNumber('3')">3</button>
+
+        <button class="num-btn" onclick="addNumber('.')">.</button>
+        <button class="num-btn" onclick="addNumber('0')">0</button>
+        <button class="num-btn btn-delete" id="backspaceBtn">⌫</button>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Saved Invoices</h3>
+                <span class="close" onclick="closeHistory()">&times;</span>
+            </div>
+            <div id="historyList" class="history-list"></div>
+        </div>
+    </div>
+
+    <!-- Custom Save Modal -->
+    <div id="saveModal" class="modal">
+        <div class="modal-content" style="padding: 20px;">
+            <h3 style="margin-top:0; color:var(--primary);">Save & Print Invoice</h3>
+            
+            <p style="color:var(--text-muted); font-size:14px; margin-bottom:5px;">Customer Name:</p>
+            <input type="text" id="modalCustomerName" class="item-name-input" style="margin-bottom:15px; width: 100%;" placeholder="Leave blank for auto-name">
+
+            <p style="color:var(--text-muted); font-size:14px; margin-bottom:5px;">Amount Left to Pay:</p>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="number" id="modalAmountLeft" class="item-name-input" style="flex: 1; margin: 0;" placeholder="0">
+                <button class="btn-small" style="background-color: var(--success); color: white; padding: 0 15px;" onclick="document.getElementById('modalAmountLeft').value = 0">Fully Paid</button>
+            </div>
+
+            <p style="color:var(--text-muted); font-size:14px; margin-bottom:10px;">Select Print Format:</p>
+            <div>
+                <button class="btn-small btn-thermal" onclick="executeSave(true)">🖨️ 2-Inch Thermal Receipt</button>
+                <button class="btn-small btn-a4" onclick="executeSave(false)">📄 Standard A4 PDF</button>
+            </div>
+            
+            <div style="text-align:right; margin-top:20px;">
+                <button class="btn-small btn-clear" style="padding:8px 15px;" onclick="closeSaveModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scan Busy Modal -->
+    <div id="scanBusyModal" class="modal">
+        <div class="modal-content" style="padding: 25px; text-align: center;">
+            <h3 style="margin-top:0; color:var(--primary);">Reading your bill…</h3>
+            <p style="color:var(--text-muted); font-size:14px; margin:10px 0 0;">This can take up to a minute.</p>
+        </div>
+    </div>
+
+    <!-- Scan Review Modal -->
+    <div id="scanReviewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Check scanned bill</h3>
+                <span class="close" onclick="scanClose()">&times;</span>
+            </div>
+            <div id="scanList" class="history-list"></div>
+            <div style="padding: 0 15px 15px;">
+                <div id="scanSummary" style="font-weight:700; color:var(--primary); margin-bottom:12px; font-size:14px;"></div>
+                <button class="btn-small btn-thermal" style="margin-left:0;" onclick="scanApply()">Add to bill</button>
+                <button class="btn-small btn-clear" style="margin-left:0; width:100%; padding:12px;" onclick="scanClose()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div id="alertModal" class="modal">
+        <div class="modal-content" style="padding: 20px; text-align: center;">
+            <h3 style="margin-top:0; color:var(--primary);">Notice</h3>
+            <p id="alertMessage" style="color:white; margin: 20px 0; font-size: 16px;"></p>
+            <button class="btn-ok" onclick="closeAlertModal()">OK</button>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content" style="padding: 20px; text-align: center;">
+            <h3 style="margin-top:0; color:var(--primary);">Confirm Action</h3>
+            <p id="confirmMessage" style="color:white; margin: 20px 0; font-size: 16px;"></p>
+            <div style="display: flex; justify-content: center; gap: 15px;">
+                <button class="btn-small btn-clear" style="padding: 10px 20px;" onclick="closeConfirmModal()">Cancel</button>
+                <button class="btn-ok" style="padding: 10px 25px;" onclick="executeConfirm()">Yes</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- Satisfying Audio Generator ---
+    let audioCtx;
+
+    function initAudio() {
+        if (!audioCtx) {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (AudioContextClass) {
+                audioCtx = new AudioContextClass();
+            }
+        }
+    }
+
+    function playClickSound() {
+        if (!audioCtx) return;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        // A very quick, satisfying pop/click frequency shape
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.05);
+
+        // Volume shaping to sound like a natural tap
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.05);
+    }
+
+    // Attach click sound global listener
+    document.body.addEventListener('pointerdown', function(e) {
+        // Trigger if the user taps any button, input box toggle, bill item, or history item
+        const target = e.target.closest('button, .input-box, .bill-item, .hist-info, .close');
+        if (target) {
+            initAudio(); 
+            playClickSound();
+        }
+    });
+
+    // Disable double-tap zoom strictly in Safari
+    document.addEventListener('dblclick', function(event) {
+        event.preventDefault();
+    }, { passive: false });
+
+
+    let activeField = 'price'; 
+    let priceInput = '';
+    let qtyInput = '';
+    let grandTotal = 0;
+    let billItemsData = [];
+    let editingIndex = -1; 
+    let pendingPrintId = null; 
+    let currentCustomerName = "";
+    let confirmCallback = null;
+    let invoiceHistory = [];
+
+    // Safely parse local storage in case the online compiler sandboxes it
+    try {
+        invoiceHistory = JSON.parse(localStorage.getItem('quickBillHistory')) || [];
+    } catch (e) {
+        console.warn("Could not access localStorage:", e);
+    }
+
+    const priceBox = document.getElementById('priceBox');
+    const qtyBox = document.getElementById('qtyBox');
+    const priceValue = document.getElementById('priceValue');
+    const qtyValue = document.getElementById('qtyValue');
+    const pricePlaceholder = document.getElementById('pricePlaceholder');
+    const qtyPlaceholder = document.getElementById('qtyPlaceholder');
+    const billList = document.getElementById('billList');
+    const grandTotalDisplay = document.getElementById('grandTotal');
+    const itemNameInput = document.getElementById('itemNameInput');
+    const deleteItemBtn = document.getElementById('deleteItemBtn');
+    
+    // --- Hold to Delete Logic ---
+    const backspaceBtn = document.getElementById('backspaceBtn');
+    let deleteInterval;
+    let deleteTimeout;
+
+    function startDelete(e) {
+        if (e.type === 'touchstart') e.preventDefault(); 
+        backspace(); 
+        
+        deleteTimeout = setTimeout(() => {
+            deleteInterval = setInterval(() => {
+                backspace();
+                playClickSound(); // Play sound during rapid delete
+            }, 100); 
+        }, 400); 
+    }
+
+    function stopDelete() {
+        clearTimeout(deleteTimeout);
+        clearInterval(deleteInterval);
+    }
+
+    backspaceBtn.addEventListener('mousedown', startDelete);
+    backspaceBtn.addEventListener('touchstart', startDelete, {passive: false});
+    backspaceBtn.addEventListener('mouseup', stopDelete);
+    backspaceBtn.addEventListener('mouseleave', stopDelete);
+    backspaceBtn.addEventListener('touchend', stopDelete);
+    backspaceBtn.addEventListener('touchcancel', stopDelete);
+
+    // --- Custom Alert & Confirm Functions ---
+    function customAlert(message) {
+        document.getElementById('alertMessage').innerText = message;
+        document.getElementById('alertModal').style.display = 'flex';
+    }
+
+    function closeAlertModal() {
+        document.getElementById('alertModal').style.display = 'none';
+    }
+
+    function customConfirm(message, callback) {
+        document.getElementById('confirmMessage').innerText = message;
+        confirmCallback = callback;
+        document.getElementById('confirmModal').style.display = 'flex';
+    }
+
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').style.display = 'none';
+        confirmCallback = null;
+    }
+
+    function executeConfirm() {
+        let tempCallback = confirmCallback; 
+        closeConfirmModal(); 
+        if(tempCallback) tempCallback(); 
+    }
+
+    function setActive(field) {
+        activeField = field;
+        if (field === 'price') {
+            priceBox.classList.add('active');
+            qtyBox.classList.remove('active');
+        } else {
+            qtyBox.classList.add('active');
+            priceBox.classList.remove('active');
+        }
+    }
+
+    function addNumber(num) {
+        if (activeField === 'price') {
+            priceInput += num;
+            priceValue.innerText = priceInput;
+            pricePlaceholder.style.display = 'none';
+        } else {
+            qtyInput += num;
+            qtyValue.innerText = qtyInput;
+            qtyPlaceholder.style.display = 'none';
+        }
+    }
+
+    function backspace() {
+        if (activeField === 'price') {
+            priceInput = priceInput.slice(0, -1);
+            priceValue.innerText = priceInput;
+            if(priceInput === '') pricePlaceholder.style.display = 'inline';
+        } else {
+            qtyInput = qtyInput.slice(0, -1);
+            qtyValue.innerText = qtyInput;
+            if(qtyInput === '') qtyPlaceholder.style.display = 'inline';
+        }
+    }
+
+    function handleEnter() {
+        if (activeField === 'price') {
+            if (priceInput !== '') setActive('qty');
+        } else if (activeField === 'qty') {
+            if (priceInput !== '' && qtyInput !== '') {
+                addItemToList();
+                resetInputs();
+            }
+        }
+    }
+
+    function renderBillList() {
+        billList.innerHTML = '';
+        grandTotal = 0;
+
+        if (billItemsData.length === 0) {
+            billList.innerHTML = `<div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">Items will appear here. <br>Tap on any item to edit it.</div>`;
+        }
+
+        billItemsData.forEach((item, index) => {
+            item.sr = index + 1;
+            grandTotal += item.total;
+
+            const row = document.createElement('div');
+            if (index === editingIndex) {
+                row.className = 'bill-item editing';
+            } else {
+                row.className = 'bill-item';
+            }
+            row.title = "Tap to edit";
+            row.onclick = () => editItem(index);
+            
+            let displayDetails = item.details;
+            if (item.details === "=") {
+                displayDetails = `<span style="font-weight: bold; font-size: 18px; color: var(--primary);">=</span>`;
+            }
+
+            row.innerHTML = `
+                <div>${item.sr}</div>
+                <div>${displayDetails}</div>
+                <div>${item.price}</div>
+                <div>${item.qty}</div>
+                <div>${item.total.toFixed(2)}</div>
+            `;
+            billList.appendChild(row);
+        });
+
+        grandTotalDisplay.innerText = '₹' + grandTotal.toFixed(2);
+    }
+
+    function addItemToList() {
+        const p = parseFloat(priceInput);
+        const q = parseFloat(qtyInput);
+        const total = p * q;
+        let customName = itemNameInput.value.trim();
+
+        if (editingIndex > -1) {
+            if (customName === '') customName = billItemsData[editingIndex].details;
+            
+            billItemsData[editingIndex] = {
+                details: customName,
+                price: p,
+                qty: q,
+                total: total
+            };
+            editingIndex = -1; 
+        } else {
+            if (customName === '') {
+                if (billItemsData.length > 0) {
+                    customName = '=';
+                } else {
+                    customName = `Item ${billItemsData.length + 1}`; 
+                }
+            }
+
+            billItemsData.push({
+                details: customName,
+                price: p,
+                qty: q,
+                total: total
+            });
+        }
+        renderBillList();
+    }
+
+    function editItem(index) {
+        editingIndex = index; 
+        const itemToEdit = billItemsData[index];
+        priceInput = itemToEdit.price.toString();
+        qtyInput = itemToEdit.qty.toString();
+        
+        if (!itemToEdit.details.startsWith("Item ") && itemToEdit.details !== "=") {
+            itemNameInput.value = itemToEdit.details;
+        } else {
+            itemNameInput.value = ''; 
+        }
+        priceValue.innerText = priceInput;
+        qtyValue.innerText = qtyInput;
+        pricePlaceholder.style.display = 'none';
+        qtyPlaceholder.style.display = 'none';
+        deleteItemBtn.style.display = 'block'; 
+        renderBillList(); 
+        setActive('price');
+    }
+
+    function deleteCurrentItem() {
+        if (editingIndex > -1) {
+            billItemsData.splice(editingIndex, 1);
+            resetInputs();
+            renderBillList();
+        }
+    }
+
+    function resetInputs() {
+        priceInput = '';
+        qtyInput = '';
+        priceValue.innerText = '';
+        qtyValue.innerText = '';
+        itemNameInput.value = ''; 
+        
+        if (billItemsData.length > 0) {
+            itemNameInput.placeholder = 'Auto-fill: =';
+        } else {
+            itemNameInput.placeholder = 'Enter Item Name (Optional)';
+        }
+
+        pricePlaceholder.style.display = 'inline';
+        qtyPlaceholder.style.display = 'inline';
+        deleteItemBtn.style.display = 'none'; 
+        editingIndex = -1;
+        setActive('price');
+    }
+
+    function requestClearBill() {
+        customConfirm("Are you sure you want to clear the entire bill?", function() {
+            billItemsData = [];
+            currentCustomerName = "";
+            scannedCustomer = "";
+            editingIndex = -1;
+            itemNameInput.placeholder = 'Enter Item Name (Optional)'; 
+            renderBillList();
+            resetInputs();
+        });
+    }
+
+    function openSaveModal() {
+        if (billItemsData.length === 0) {
+            customAlert("Please add at least one item before saving.");
+            return;
+        }
+        pendingPrintId = null; 
+        document.getElementById('modalCustomerName').value = scannedCustomer;
+        document.getElementById('modalAmountLeft').value = "";
+        document.getElementById('saveModal').style.display = 'flex';
+    }
+
+    function closeSaveModal() {
+        document.getElementById('saveModal').style.display = 'none';
+    }
+
+    function executeSave(isThermal) {
+        let customerName = document.getElementById('modalCustomerName').value.trim();
+        
+        if (customerName === "") {
+            let maxCustomer = 0;
+            invoiceHistory.forEach(inv => {
+                const match = inv.customerName.match(/^Customer (\d+)$/i);
+                if (match) {
+                    const num = parseInt(match[1]);
+                    if (num > maxCustomer) maxCustomer = num;
+                }
+            });
+            customerName = "Customer " + (maxCustomer + 1);
+        }
+        
+        let amountLeftRaw = document.getElementById('modalAmountLeft').value;
+        let amountLeft = amountLeftRaw === "" ? 0 : parseFloat(amountLeftRaw);
+        
+        currentCustomerName = customerName;
+        scannedCustomer = "";
+        
+        closeSaveModal();
+
+        if (pendingPrintId !== null) {
+            const invToPrint = invoiceHistory.find(inv => inv.id === pendingPrintId);
+            if (invToPrint) {
+                invToPrint.customerName = customerName; 
+                invToPrint.amountLeft = amountLeft;
+                saveToStorage();
+                buildAndDownloadPDF(invToPrint, isThermal);
+            }
+        } else {
+            let dateString = new Date().toLocaleDateString('en-GB'); 
+            const newRecord = {
+                id: Date.now(), 
+                customerName: customerName,
+                date: dateString,
+                total: grandTotal,
+                amountLeft: amountLeft,
+                items: JSON.parse(JSON.stringify(billItemsData)) 
+            };
+            
+            invoiceHistory.push(newRecord);
+            saveToStorage();
+            buildAndDownloadPDF(newRecord, isThermal);
+        }
+    }
+
+    function saveToStorage() {
+        try {
+            localStorage.setItem('quickBillHistory', JSON.stringify(invoiceHistory));
+        } catch (e) {
+            console.warn("Could not save to localStorage:", e);
+        }
+    }
+
+    // --- History Functions ---
+    function openHistory() {
+        renderHistory();
+        document.getElementById('historyModal').style.display = 'flex';
+    }
+
+    function closeHistory() {
+        document.getElementById('historyModal').style.display = 'none';
+    }
+
+    function loadInvoice(id) {
+        const doLoad = () => {
+            const inv = invoiceHistory.find(i => i.id === id);
+            if (inv) {
+                if (!inv.items || inv.items.length === 0) {
+                    customAlert("This is an older invoice and its item details were not saved. Only newly generated invoices will load fully.");
+                    return;
+                }
+                
+                billItemsData = JSON.parse(JSON.stringify(inv.items));
+                currentCustomerName = inv.customerName;
+                renderBillList();
+                resetInputs();
+                closeHistory();
+            }
+        };
+
+        if (billItemsData.length > 0) {
+            customConfirm("This will replace your current unsaved bill. Continue?", doLoad);
+        } else {
+            doLoad();
+        }
+    }
+
+    function renderHistory() {
+        const historyList = document.getElementById('historyList');
+        historyList.innerHTML = '';
+
+        if (invoiceHistory.length === 0) {
+            historyList.innerHTML = `<div style="text-align: center; color: #888; padding: 20px;">No saved invoices found.</div>`;
+            return;
+        }
+
+        invoiceHistory.forEach(inv => {
+            let amtLeft = inv.amountLeft !== undefined ? parseFloat(inv.amountLeft) : 0;
+            
+            let statusBadge = amtLeft > 0 
+                ? `<span style="color: var(--danger); font-weight: 600; margin-left: 5px;">| Left: ₹${amtLeft.toFixed(2)}</span>`
+                : `<span style="color: var(--success); font-weight: 600; margin-left: 5px;">| ✅ Paid</span>`;
+            
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.innerHTML = `
+                <div class="hist-info" onclick="loadInvoice(${inv.id})" title="Tap to load this bill">
+                    <strong>${inv.customerName}</strong>
+                    <small>${inv.date} | ₹${inv.total.toFixed(2)} ${statusBadge}</small>
+                </div>
+                <div class="hist-actions">
+                    <button class="btn-small btn-history" style="padding: 6px; margin: 0;" onclick="loadInvoice(${inv.id})" title="Load Invoice">📂</button>
+                    <button class="btn-small btn-thermal" style="padding: 6px; margin: 0;" onclick="printFromHistory(${inv.id})" title="Print Invoice">🖨️</button>
+                    <button class="btn-small btn-clear" style="padding: 6px; margin: 0;" onclick="deleteInvoice(${inv.id})" title="Delete History">🗑️</button>
+                </div>
+            `;
+            historyList.appendChild(item);
+        });
+    }
+
+    function deleteInvoice(id) {
+        customConfirm("Are you sure you want to delete this saved invoice?", function() {
+            invoiceHistory = invoiceHistory.filter(inv => inv.id !== id);
+            saveToStorage();
+            renderHistory(); 
+        });
+    }
+
+    function printFromHistory(id) {
+        pendingPrintId = id;
+        const inv = invoiceHistory.find(i => i.id === id);
+        if (inv) {
+            document.getElementById('modalCustomerName').value = inv.customerName;
+            document.getElementById('modalAmountLeft').value = inv.amountLeft !== undefined ? inv.amountLeft : 0;
+            closeHistory();
+            document.getElementById('saveModal').style.display = 'flex';
+        }
+    }
+
+    // --- PDF Generation Function ---
+    function buildAndDownloadPDF(invoiceRecord, isThermal) {
+        const invoiceDiv = document.createElement('div');
+        invoiceDiv.style.backgroundColor = 'white';
+        invoiceDiv.style.color = 'black';
+        invoiceDiv.style.padding = '20px';
+        invoiceDiv.style.fontFamily = 'monospace';
+
+        if(isThermal) {
+            invoiceDiv.style.width = '58mm';
+            invoiceDiv.style.fontSize = '12px';
+        } else {
+            invoiceDiv.style.width = '100%';
+            invoiceDiv.style.fontSize = '16px';
+        }
+
+        let htmlContent = `
+            <div style="text-align: center; border-bottom: 1px dashed black; padding-bottom: 10px; margin-bottom: 10px;">
+                <h2 style="margin: 0;">INVOICE</h2>
+                <p style="margin: 5px 0 0 0;">Customer: ${invoiceRecord.customerName}</p>
+                <p style="margin: 5px 0 0 0;">Date: ${invoiceRecord.date}</p>
+            </div>
+            <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1px dashed black;">
+                        <th style="text-align: center; padding: 5px 0;">Item</th>
+                        <th style="text-align: center; padding: 5px 0;">Price</th>
+                        <th style="text-align: center; padding: 5px 0;">Qty</th>
+                        <th style="text-align: center; padding: 5px 0;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        invoiceRecord.items.forEach(item => {
+            let displayDetails = item.details;
+            if (item.details === "=") {
+                displayDetails = '<strong style="font-size: 1.2em;">=</strong>';
+            }
+
+            htmlContent += `
+                <tr>
+                    <td style="text-align: center; padding: 3px 0;">${displayDetails}</td>
+                    <td style="text-align: center; padding: 3px 0;">${item.price}</td>
+                    <td style="text-align: center; padding: 3px 0;">${item.qty}</td>
+                    <td style="text-align: center; padding: 3px 0;">${item.total.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        let amountLeftText = invoiceRecord.amountLeft !== undefined ? `₹${parseFloat(invoiceRecord.amountLeft).toFixed(2)}` : '₹0.00';
+
+        htmlContent += `
+                </tbody>
+            </table>
+            <div style="text-align: right; border-top: 1px dashed black; padding-top: 10px; margin-top: 10px;">
+                <strong>Grand Total: ₹${invoiceRecord.total.toFixed(2)}</strong><br>
+                <strong style="color: #444; font-size: 0.9em; margin-top: 5px; display: inline-block;">Amount Left to Pay: ${amountLeftText}</strong>
+            </div>
+        `;
+
+        invoiceDiv.innerHTML = htmlContent;
+
+        const safeCustomerName = invoiceRecord.customerName.replace(/\s+/g, '_').toLowerCase();
+        const safeDate = invoiceRecord.date.replace(/\//g, '-');
+        const generatedFilename = `${safeCustomerName}_${safeDate}.pdf`;
+
+        const opt = {
+            margin:       isThermal ? 2 : 10,
+            filename:     generatedFilename,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'mm', format: isThermal ? [58, 200] : 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(invoiceDiv).save();
+    }
+
+    // ===== Handwritten bill scanner =====
+    // Paste your Cloudflare Worker link here (see worker.js)
+    const SCAN_API_URL = "https://bill-scanner.taraniayush.workers.dev";
+    let scannedCustomer = "";
+    let scanRows = [];
+    let scanCustomerPending = "";
+
+    const scanRound = n => Math.round(n * 100) / 100;
+    function scanNum(v) {
+        if (v === null || v === undefined || v === "") return null;
+        const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ""));
+        return (isNaN(n) || n < 0) ? null : n;
+    }
+    const scanClean = t => String(t == null ? "" : t).replace(/[<>&"]/g, "").trim();
+
+    // Check one handwritten row: price x qty is the truth, fix or fill the total
+    function scanReconcile(r) {
+        const p = scanNum(r.price), q = scanNum(r.qty), w = scanNum(r.written_total);
+        const details = scanClean(r.name);
+        let price, qty, total, note, level;
+        if (p !== null && q !== null) {
+            price = p; qty = q; total = scanRound(p * q);
+            if (w === null) { note = "Total was missing, added"; level = "fix"; }
+            else if (Math.abs(w - total) > 0.01) { note = "Fixed: written " + w + " → " + total; level = "fix"; }
+            else { note = "OK"; level = "ok"; }
+        } else if (p !== null && p > 0 && w !== null) {
+            price = p; qty = scanRound(w / p); total = scanRound(price * qty);
+            note = "Qty worked out from total, please check"; level = "check";
+        } else if (q !== null && q > 0 && w !== null) {
+            qty = q; price = scanRound(w / q); total = scanRound(price * qty);
+            note = "Price worked out from total, please check"; level = "check";
+        } else if (w !== null) {
+            price = w; qty = 1; total = w;
+            note = "Only total found, kept as 1 × total"; level = "check";
+        } else if (p !== null) {
+            price = p; qty = 1; total = p;
+            note = "Qty missing, used 1"; level = "check";
+        } else {
+            return null;
+        }
+        return { details, price, qty, total, note, level };
+    }
+
+    async function scanResize(file) {
+        const bm = await createImageBitmap(file);
+        const k = Math.min(1, 1600 / Math.max(bm.width, bm.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(bm.width * k);
+        c.height = Math.round(bm.height * k);
+        c.getContext('2d').drawImage(bm, 0, 0, c.width, c.height);
+        return c.toDataURL('image/jpeg', 0.85).split(',')[1];
+    }
+
+    async function scanHandle(file) {
+        if (!file) return;
+        if (SCAN_API_URL.indexOf("PASTE_") === 0) {
+            customAlert("Scan is not set up yet. Add your Worker link to SCAN_API_URL in index.html.");
+            document.getElementById('scanFile').value = '';
+            return;
+        }
+        const busy = document.getElementById('scanBusyModal');
+        busy.style.display = 'flex';
+        try {
+            const image = await scanResize(file);
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 60000);
+            const res = await fetch(SCAN_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: image }),
+                signal: ctrl.signal
+            });
+            clearTimeout(timer);
+            if (!res.ok) throw new Error('http ' + res.status);
+            const data = await res.json();
+            const rows = (Array.isArray(data.rows) ? data.rows : []).map(scanReconcile).filter(Boolean);
+            busy.style.display = 'none';
+            if (rows.length === 0) {
+                customAlert("No items could be read. Try a clearer, straight photo in good light.");
+            } else {
+                scanShowReview(rows, scanNum(data.written_grand_total), data.customer);
+            }
+        } catch (e) {
+            busy.style.display = 'none';
+            customAlert("Could not read the bill. Check your internet and try again.");
+        } finally {
+            document.getElementById('scanFile').value = '';
+        }
+    }
+
+    function scanShowReview(rows, writtenGrand, customer) {
+        scanRows = rows;
+        scanCustomerPending = scanClean(customer);
+        const list = document.getElementById('scanList');
+        list.innerHTML = '';
+        let sum = 0;
+        rows.forEach(r => {
+            sum += r.total;
+            const d = document.createElement('div');
+            d.className = 'history-item';
+            d.style.display = 'block';
+            const top = document.createElement('div');
+            top.style.cssText = 'display:flex;justify-content:space-between;font-weight:600;font-size:14px;';
+            const a = document.createElement('span'); a.textContent = r.details || '(no name)';
+            const b = document.createElement('span'); b.textContent = '₹' + r.total.toFixed(2);
+            top.append(a, b);
+            const mid = document.createElement('small');
+            mid.style.cssText = 'color:var(--text-muted);display:block;margin-top:4px;font-size:12px;';
+            mid.textContent = r.price + ' × ' + r.qty;
+            const st = document.createElement('small');
+            const color = r.level === 'ok' ? 'var(--success)' : (r.level === 'fix' ? 'var(--primary)' : 'var(--danger)');
+            st.style.cssText = 'display:block;margin-top:3px;font-size:12px;font-weight:600;color:' + color + ';';
+            st.textContent = (r.level === 'ok' ? '✓ ' : '⚠ ') + r.note;
+            d.append(top, mid, st);
+            list.appendChild(d);
+        });
+        sum = scanRound(sum);
+        let text = 'Corrected total: ₹' + sum.toFixed(2);
+        if (writtenGrand !== null && Math.abs(writtenGrand - sum) > 0.01) text += '  (you wrote ₹' + writtenGrand.toFixed(2) + ')';
+        document.getElementById('scanSummary').textContent = text;
+        document.getElementById('scanReviewModal').style.display = 'flex';
+    }
+
+    function scanClose() {
+        document.getElementById('scanReviewModal').style.display = 'none';
+        scanRows = [];
+    }
+
+    function scanApply() {
+        scanRows.forEach(r => {
+            let name = r.details;
+            if (name === '') name = billItemsData.length > 0 ? '=' : 'Item ' + (billItemsData.length + 1);
+            billItemsData.push({ details: name, price: r.price, qty: r.qty, total: r.total });
+        });
+        if (scanCustomerPending && !scannedCustomer) scannedCustomer = scanCustomerPending;
+        scanClose();
+        editingIndex = -1;
+        renderBillList();
+        resetInputs();
+        billList.scrollTop = billList.scrollHeight;
+    }
+
+    document.getElementById('scanFile').addEventListener('change', e => scanHandle(e.target.files[0]));
+</script>
+</body>
+</html>
